@@ -1,0 +1,15 @@
+# ROS 2 build outputs
+build/
+install/
+log/
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Compiled objects
+*.pyc

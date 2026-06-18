@@ -1,0 +1,9 @@
+base_driver:
+  ros__parameters:
+    port: "/dev/ttyUSB0"
+    baudrate: 115200
+    odom_frame: "odom"
+    base_frame: "base_link"
+    max_linear_speed: 0.5
+    max_angular_speed: 1.0
+    cmd_timeout: 0.5
