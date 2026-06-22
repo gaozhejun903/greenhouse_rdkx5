@@ -14,16 +14,7 @@ def generate_launch_description():
     rviz_config = os.path.join(pkg_dir, 'rviz', 'slam.rviz')
 
     return LaunchDescription([
-        # 1. static TF odom → base_link (identity)
-        Node(
-            package='tf2_ros',
-            executable='static_transform_publisher',
-            name='static_odom_to_base',
-            arguments=['0', '0', '0', '0', '0', '0', 'odom', 'base_link'],
-            output='screen',
-        ),
-
-        # 2. robot_state_publisher (URDF)
+        # 1. robot_state_publisher (URDF, 提供 base_link → laser 静态 TF)
         Node(
             package='robot_state_publisher',
             executable='robot_state_publisher',
@@ -34,13 +25,22 @@ def generate_launch_description():
             }],
         ),
 
-        # 3. lidar driver node
+        # 2. lidar driver node
         Node(
             package='lidar_pkg',
             executable='lidar_node',
             name='lidar_node',
             output='screen',
             parameters=[os.path.join(pkg_dir, 'config', 'lidar_params.yaml')],
+        ),
+
+        # 3. base driver (STM32 chassis, 发布 /odom + 动态 TF odom→base_link)
+        Node(
+            package='lidar_pkg',
+            executable='base_driver',
+            name='base_driver',
+            output='screen',
+            parameters=[os.path.join(pkg_dir, 'config', 'base_params.yaml')],
         ),
 
         # 4. slam_toolbox (async mode)

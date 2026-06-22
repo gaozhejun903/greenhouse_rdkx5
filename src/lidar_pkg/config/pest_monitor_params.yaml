@@ -1,0 +1,10 @@
+# 病虫害定位监控节点参数
+pest_monitor:
+  ros__parameters:
+    # TCP 上传配置
+    tcp_enabled: true
+    server_ip: "192.168.1.100"    # 电脑端 IP (请修改为实际 IP)
+    server_port: 8888              # 电脑端接收端口
+
+    # 位姿日志打印间隔 (秒)
+    log_pose_interval: 5.0

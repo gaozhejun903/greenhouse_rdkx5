@@ -16,16 +16,25 @@ def generate_launch_description():
     lidar_params = os.path.join(pkg_dir, 'config', 'lidar_params.yaml')
     base_params = os.path.join(pkg_dir, 'config', 'base_params.yaml')
     nav2_params = os.path.join(pkg_dir, 'config', 'nav2_params.yaml')
+    pest_params = os.path.join(pkg_dir, 'config', 'pest_monitor_params.yaml')
     rviz_config = os.path.join(pkg_dir, 'rviz', 'slam.rviz')
 
     # Launch arguments
     use_sim_time = False
     autostart = True
     use_rviz = LaunchConfiguration('use_rviz', default='true')
+    use_keyboard = LaunchConfiguration('use_keyboard', default='false')
+    map_file = LaunchConfiguration('map_file',
+        default=os.path.expanduser('~/rdkx5_ws/maps/my_map.yaml'))
 
     return LaunchDescription([
         DeclareLaunchArgument('use_rviz', default_value='true',
                               description='Launch RViz2'),
+        DeclareLaunchArgument('use_keyboard', default_value='false',
+                              description='Launch keyboard control for manual override'),
+        DeclareLaunchArgument('map_file',
+                              default_value=os.path.expanduser('~/rdkx5_ws/maps/my_map.yaml'),
+                              description='Full path to map yaml file'),
 
         # ========== 1. Robot State Publisher (URDF) ==========
         Node(
@@ -57,13 +66,23 @@ def generate_launch_description():
             parameters=[base_params],
         ),
 
+        # ========== 3.5 Pest Monitor (病虫害定位监控) ==========
+        Node(
+            package='lidar_pkg',
+            executable='pest_monitor',
+            name='pest_monitor',
+            output='screen',
+            parameters=[pest_params],
+        ),
+
         # ========== 4. Map Server ==========
         Node(
             package='nav2_map_server',
             executable='map_server',
             name='map_server',
             output='screen',
-            parameters=[nav2_params],
+            parameters=[nav2_params,
+                {'yaml_filename': map_file}],
         ),
 
         # ========== 5. AMCL (Localization) ==========
@@ -131,7 +150,16 @@ def generate_launch_description():
             }],
         ),
 
-        # ========== 11. RViz2 ==========
+        # ========== 11. Keyboard Control (可选, 手动接管) ==========
+        Node(
+            package='lidar_pkg',
+            executable='keyboard_control',
+            name='keyboard_control',
+            output='screen',
+            condition=IfCondition(use_keyboard),
+        ),
+
+        # ========== 12. RViz2 ==========
         Node(
             package='rviz2',
             executable='rviz2',

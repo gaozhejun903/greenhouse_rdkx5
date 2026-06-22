@@ -4,11 +4,11 @@
  *
  * 通过 USB 串口与 STM32 通信，控制小车运动。
  * 通信协议：AA + CMD + 55
- *   AA 00 55 → 前进
- *   AA 01 55 → 停止
- *   AA 02 55 → 后退
- *   AA 03 55 → 左转 (逆时针)
- *   AA 04 55 → 右转 (顺时针)
+ *   AA 11 55 → 前进
+ *   AA 12 55 → 后退
+ *   AA 13 55 → 停止
+ *   AA 14 55 → 前左转
+ *   AA 15 55 → 前右转
  *
  * 订阅 /cmd_vel (geometry_msgs/Twist) 接收导航速度指令
  * 发布 /odom (nav_msgs/Odometry) + TF odom→base_link (航位推算)
@@ -99,7 +99,7 @@ public:
     ~BaseDriver()
     {
         if (fd_ != -1) {
-            sendCmd(0x01); // stop before exit
+            sendCmd(0x13); // stop before exit
             close(fd_);
         }
     }
@@ -185,7 +185,38 @@ private:
     void cmdByteCallback(const std_msgs::msg::UInt8::SharedPtr msg)
     {
         sendCmd(msg->data);
-        RCLCPP_INFO(this->get_logger(), "cmd_byte: 0x%02X", msg->data);
+
+        // 根据 cmd_byte 同步更新里程计速度 (用于航位推算)
+        // 这样用 /cmd_byte 控制小车时,SLAM 也能获得正确的 odom→base_link TF
+        switch (msg->data) {
+            case 0x11: // 前进
+                last_cmd_linear_x_ = max_linear_speed_;
+                last_cmd_angular_z_ = 0.0;
+                break;
+            case 0x12: // 后退
+                last_cmd_linear_x_ = -max_linear_speed_;
+                last_cmd_angular_z_ = 0.0;
+                break;
+            case 0x13: // 停止
+                last_cmd_linear_x_ = 0.0;
+                last_cmd_angular_z_ = 0.0;
+                break;
+            case 0x14: // 前左转
+                last_cmd_linear_x_ = max_linear_speed_;
+                last_cmd_angular_z_ = max_angular_speed_;
+                break;
+            case 0x15: // 前右转
+                last_cmd_linear_x_ = max_linear_speed_;
+                last_cmd_angular_z_ = -max_angular_speed_;
+                break;
+            default:
+                RCLCPP_WARN(this->get_logger(), "未知 cmd_byte: 0x%02X", msg->data);
+                break;
+        }
+        last_cmd_time_ = this->now();
+
+        RCLCPP_INFO(this->get_logger(), "cmd_byte: 0x%02X (v=%.2f, w=%.2f)",
+            msg->data, last_cmd_linear_x_, last_cmd_angular_z_);
     }
 
     // ================================================
@@ -195,15 +226,15 @@ private:
     {
         // Forward / backward takes priority
         if (linear_x > 0.05) {
-            return 0x00; // forward
+            return 0x11; // forward
         } else if (linear_x < -0.05) {
-            return 0x02; // backward
+            return 0x12; // backward
         } else if (angular_z > 0.05) {
-            return 0x03; // rotate left (CCW)
+            return 0x14; // forward left
         } else if (angular_z < -0.05) {
-            return 0x04; // rotate right (CW)
+            return 0x15; // forward right
         } else {
-            return 0x01; // stop
+            return 0x13; // stop
         }
     }
 
@@ -230,7 +261,7 @@ private:
         {
             // No cmd_vel received recently → stop the robot
             if (last_cmd_linear_x_ != 0.0 || last_cmd_angular_z_ != 0.0) {
-                sendCmd(0x01); // stop
+                sendCmd(0x13); // stop
                 last_cmd_linear_x_ = 0.0;
                 last_cmd_angular_z_ = 0.0;
                 RCLCPP_DEBUG(this->get_logger(), "cmd timeout: stopping robot");

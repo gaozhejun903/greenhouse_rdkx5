@@ -22,3 +22,13 @@ slam_toolbox:
     # loop closure
     loop_closing: true
     loop_detection: true
+
+    # 地图发布频率 (默认 10 秒太慢, 改为 1 秒)
+    map_update_rate: 1.0          # 每秒发布一次 /map
+    publish_map_seconds: 1.0      # 地图发布周期 (秒)
+    publish_period_sec: 1.0       # 地图发布周期 (新版本参数名)
+
+    # 扫描匹配参数
+    minimum_travel_distance: 0.3  # 移动 30cm 才处理新扫描 (避免静止时重复处理)
+    minimum_travel_heading: 0.3   # 旋转 0.3 弧度才处理新扫描
+    scan_buffer_size: 10          # 扫描缓存大小
